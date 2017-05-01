@@ -163,12 +163,17 @@ class BottleApplication(Bottle):
             if self.interactive.mode == 'refine':
                 bin_prefix = list(self.interactive.bins)[0] + "_" if len(self.interactive.bins) == 1 else "Refined_",
 
-            return json.dumps( { "title":                               self.interactive.title,
-                                 "description":                        (self.interactive.p_meta['description']),
-                                 "clusterings":                        (self.interactive.p_meta['default_clustering'], self.interactive.p_meta['clusterings']),
-                                 "views":                              (self.interactive.default_view, dict(list(zip(list(self.interactive.views.keys()), list(self.interactive.views.keys()))))),
+            return json.dumps( { "title":                              self.interactive.title,
+                                 "description":                        self.interactive.p_meta['description'],
+                                 "clusterings":                        {
+                                                                            'default': self.interactive.p_meta['default_clustering'],
+                                                                            'all'    : self.interactive.p_meta['clusterings']
+                                                                       },
+                                 "views":                              {
+                                                                            'default': self.interactive.default_view,
+                                                                            'all'    : self.interactive.views
+                                                                        },
                                  "contigLengths":                      dict([tuple((c, self.interactive.splits_basic_info[c]['length']),) for c in self.interactive.splits_basic_info]),
-                                 "defaultView":                        self.interactive.views[self.interactive.default_view],
                                  "mode":                               self.interactive.mode,
                                  "readOnly":                           self.read_only,
                                  "binPrefix":                          bin_prefix,

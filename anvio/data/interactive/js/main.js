@@ -55,6 +55,9 @@ var SELECTED = new Array();
 var clusteringData;
 var hasTree;
 
+var clusterings_all;
+var views_all;
+
 var layerdata;
 var contig_lengths;
 var parameter_count;
@@ -209,163 +212,91 @@ $(document).ready(function() {
         }  
     });
 
-    initData();
+    if (!$.browser.chrome)
+    {
+        toastr.warning("We tested anvi'o only on Google Chrome, " + 
+                       "and it seems you are using a different browser. " +
+                       "For the best performance, and to avoid unexpected issues, " + 
+                       "please consider using anvi'o with the lastest version of Chrome.", 
+                       "", { 'timeOut': '0', 'extendedTimeOut': '0' });
+    }
+
+    waitingDialog.show('Requesting initial data from the server...', { 
+        dialogSize: 'sm',
+        onShow: function() {
+            initData();
+        },
+        onHide: function() {
+            if (autoload_state !== null) {
+                 $.when({}).then(loadState).then(function() { drawTree(); });
+            }
+        }
+    });
 }); // document ready
 
 function initData() {
     var timestamp = new Date().getTime(); 
-
-    $.when(
     $.ajax({
-            type: 'GET',
-            cache: false,
-            url: '/data/init?timestamp=' + timestamp,
-        })
-    )
-    .then(
-    function (response)
-        {
-        var titleResponse = [ response.title ];
-        var clusteringsResponse = [ response.clusterings ];
-        var viewsResponse = [ response.views ];
-        var contigLengthsResponse = [ response.contigLengths ];
-        var defaultViewResponse = [ response.defaultView ];
-        var modeResponse = [ response.mode ];
-        var readOnlyResponse = [ response.readOnly ];
-        var prefixResponse = [ response.binPrefix ];
-        var sessionIdResponse = [ response.sessionId ];
-        var samplesOrderResponse = [ response.samplesOrder ];
-        var sampleInformationResponse = [ response.sampleInformation ];
-        var sampleInformationDefaultLayerOrderResponse = [ response.sampleInformationDefaultLayerOrder ];
-        var stateAutoloadResponse = [ response.stateAutoload ];
-        var collectionAutoloadResponse = [ response.collectionAutoload ];
-        var inspectionAvailable = response.inspectionAvailable;
-        var sequencesAvailable = response.sequencesAvailable;
-        var description = response.description;
-        var project = response.project;
-            unique_session_id = sessionIdResponse[0];
-            mode = modeResponse[0];
+        type: 'GET',
+        cache: false,
+        url: '/data/init?timestamp=' + timestamp,
+        success: function (response) {
+            waitingDialog.hide();
+            
+            // set globals 
+            console.log(response);
+            mode              = response.mode;
+            unique_session_id = response.sessionId;
+            bin_prefix        = response.binPrefix;
+            contig_lengths    = response.contigLengths;
 
-        if(!inspectionAvailable){
-            toastr.info("Inspection of data items is not going to be available for this project.");
-            $('.menuItemInspect').addClass('menu-disabled');
-        }
-
-        if(!sequencesAvailable && mode != "collection" && mode != "pan"){
-            toastr.info("No sequence data is available. Some menu items will be disabled.");
-            $('.menuItemSequence').addClass('menu-disabled');
-        }
-
-        if (! response.noPing) {
-            ping_timer = setInterval(checkBackgroundProcess, 5000);
-        }
-
-            if (!$.browser.chrome)
-            {
-                toastr.warning("We tested anvi'o only on Google Chrome, and it seems you are using a different browser. For the best performance, and to avoid unexpected issues, please consider using anvi'o with the lastest version of Chrome.", "", { 'timeOut': '0', 'extendedTimeOut': '0' });
+            if(!response.inspectionAvailable){
+                toastr.info("Inspection of data items is not going to be available for this project.");
+                $('.menuItemInspect').addClass('menu-disabled');
             }
 
-            // hide all mode dependent divs:
-            $('.full-mode').hide();
-            $('.pan-mode').hide();
-            $('.collection-mode').hide();
-            $('.manual-mode').hide();
-            $('.server-mode').hide();
-            $('.refine-mode').hide();
-
-            console.log("The running mode for the interface: " + mode);
-
-            // mode switch:
-            if (mode == 'refine')
-            {
-                $('.refine-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/refine-bg.png)');
-            } else if (mode == 'server') {
-                $('.server-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/server-bg.png)');
-                $('#multiUser').show();
-                $('#multiUser > span').html('<b>' + titleResponse[0] + '</b><br /><i>(by <a href="/' + project.username + '" target="_blank">' + project.fullname + '</a>)</i>');
-                $('#multiUser > img').attr('src', project.user_avatar);
-                $('#multiUser > .download-button').attr('href', project.download_zip_url);
-                $('#sidebar').css('margin-top', '81px')
-            } else if (mode == 'full') {
-                $('.full-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/full-bg.png)');
-            } else if (mode == 'pan') {
-                $('.pan-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/pan-bg.png)');
-
-                $('#completion_title').attr('title', 'PCs').html('PCs');
-                $('#redundancy_title').attr('title', 'Gene Calls').html('Gene Calls');
-                $('#splits_title').hide();
-                $('#len_title').hide();
-
-            } else if (mode == 'collection') {
-                $('.collection-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/collection-bg.png)');
-            } else if (mode == 'manual') {
-                $('.manual-mode').show();
-                $('.nav-tabs').css('background-image', 'url(images/manual-bg.png)');
+            if(!response.sequencesAvailable && mode != "collection" && mode != "pan"){
+                toastr.info("No sequence data is available. Some menu items will be disabled.");
+                $('.menuItemSequence').addClass('menu-disabled');
             }
 
-            if (readOnlyResponse[0] == true)
+            if (!response.noPing) {
+                ping_timer = setInterval(checkBackgroundProcess, 5000);
+            }
+
+            if (response.readOnly == true)
             {
-                toastr.info("It seems that this is a read-only instance, therefore the database-writing functions will be inaccessible.", "", { 'timeOut': '0', 'extendedTimeOut': '0' });
+                toastr.info("It seems that this is a read-only instance, " +
+                            "therefore the database-writing functions will be inaccessible.", 
+                            "", { 'timeOut': '0', 'extendedTimeOut': '0' });
+
                 $('[disabled-in-read-only=true]').addClass('disabled').prop('disabled', true);
             }
 
-            bin_prefix = prefixResponse[0];
+            // initialize mode related divs
+            switchMode();
 
-            document.title = titleResponse[0];
-            $('#title-panel-first-line').text(titleResponse[0]);
-            if (typeof description !== 'undefined')
-            {
-                $('#title-panel-first-line').append('<button class="btn btn-xs btn-default" onclick="showDescription();" style="margin-left: 15px;"><span class="glyphicon glyphicon-info-sign"></span> Description</button>');
+            document.title = response.title;
+            $('#title-panel-first-line').text(response.title);
+
+            if (mode === 'server') {
+                initProjectBar(response.project);
             }
-            $('#description-editor').val(description);
-            descriptionEditor = new SimpleMDE({ 
-                element: document.getElementById("description-editor"),
-                toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|" ,"link", "image", "|" ,"preview"],
-            });
 
-            descriptionEditor.codemirror.on("change", function(){
-                $('#description-editor').val(descriptionEditor.value());
-            });
-            //descriptionEditor.value(description);
+            initDescription(response.description);
 
-            contig_lengths = eval(contigLengthsResponse[0]);
+            // load clustering data
+            clusterings_all = response.clusterings.all;
+            $('#trees_container').append(getComboBoxContent(response.clusterings.default, Object.keys(clusterings_all)));
+            $('#trees_container').change(onTreeClusteringChange);
 
-            // if --state parameter given, autoload given state.
-            autoload_state = stateAutoloadResponse[0];
-
-            // if --collection parameter given, autoload given collection.
-            autoload_collection = collectionAutoloadResponse[0];
-
-            /* 
-            //  Clusterings
-            */
-            var default_tree = clusteringsResponse[0][0];
-            var available_trees = clusteringsResponse[0][1];
-            var available_trees_combo = getComboBoxContent(default_tree, available_trees);
-
-            $('#trees_container').append(available_trees_combo);
-            $('#trees_container').change(function() {
-                onTreeClusteringChange();
-            });
-
-            /* 
-            //  Views
-            */
-            var default_view = viewsResponse[0][0];
-            var available_views = viewsResponse[0][1];
-            var available_views_combo = getComboBoxContent(default_view, available_views);
-
-            $('#views_container').append(available_views_combo);
-            $('#views_container').change(function() {
-                onViewChange();
-            });
+            // load view data
+            views_all = response.views.all;
+            $('#views_container').append(getComboBoxContent(response.views.default, Object.keys(views_all)));
+            $('#views_container').change(onViewChange);
 
             // make layers and samples table sortable
+            // TO DO: is this only for full mode? or also for collection?
             var _notFirstSelector = ''
             if (mode != 'manual' && mode != 'pan' && mode != 'server') {
                 _notFirstSelector = ':not(:first)';
@@ -373,9 +304,9 @@ function initData() {
             $("#tbody_layers").sortable({helper: fixHelperModified, handle: '.drag-icon', items: "> tr" + _notFirstSelector}).disableSelection(); 
             $("#tbody_samples").sortable({helper: fixHelperModified, handle: '.drag-icon', items: "> tr"}).disableSelection(); 
 
-            samples_order_dict = samplesOrderResponse[0];
-            samples_information_dict = sampleInformationResponse[0];
-            samples_information_default_layer_order = sampleInformationDefaultLayerOrderResponse[0];
+            samples_order_dict = response.samplesOrder;
+            samples_information_dict = response.sampleInformation;
+            samples_information_default_layer_order = response.sampleInformationDefaultLayerOrder;
 
             available_orders = Object.keys(samples_order_dict).sort();
             $('#samples_order').append(new Option('custom'));
@@ -388,6 +319,50 @@ function initData() {
                 $('#samples_order').append(new Option(order_name, order));
             });
             buildSamplesTable(samples_information_default_layer_order);
+
+            onTreeClusteringChange();
+            onViewChange();
+
+            autoload_state = response.stateAutoload;
+            autoload_collection = response.collectionAutoload;
+
+            // create initial empty bin
+            newBin();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            waitingDialog.hide();
+            console.log(jqXHR, textStatus, errorThrown);
+            toastr.error("Initial data request failed, details logged to javascript console.", 
+                         "", { 'timeOut': '0', 'extendedTimeOut': '0' });
+        }
+    });
+/*
+    .then(
+    function (response)
+        {
+        var clusteringsResponse = [ response.clusterings ];
+        var viewsResponse = [ response.views ];
+        var defaultViewResponse = [ response.defaultView ];
+        var sessionIdResponse = [ response.sessionId ];
+        var samplesOrderResponse = [ response.samplesOrder ];
+        var sampleInformationResponse = [ response.sampleInformation ];
+        var sampleInformationDefaultLayerOrderResponse = [ response.sampleInformationDefaultLayerOrder ];
+        var stateAutoloadResponse = [ response.stateAutoload ];
+        var collectionAutoloadResponse = [ response.collectionAutoload ];
+        var description = response.description;
+
+
+            // if --state parameter given, autoload given state.
+            autoload_state = stateAutoloadResponse[0];
+
+            // if --collection parameter given, autoload given collection.
+            autoload_collection = collectionAutoloadResponse[0];
+
+
+
+
+
+
 
             // load default data
             if (autoload_state !== null)
@@ -406,75 +381,107 @@ function initData() {
                           .then(onTreeClusteringChange);          
             }
 
-            /*
-            //  Add bins
-            */
-            newBin();
         } // response callback
     ).fail(function() {
         toastr.error("One or more ajax request has failed, See console logs for details.", "", { 'timeOut': '0', 'extendedTimeOut': '0' });
         console.log(arguments);
-    }); // promise
+    }); // promise*/
+}
+
+function switchMode() {
+    console.log("The running mode for the interface: " + mode);
+
+    // hide all mode dependent divs
+    $('.full-mode').hide();
+    $('.pan-mode').hide();
+    $('.collection-mode').hide();
+    $('.manual-mode').hide();
+    $('.server-mode').hide();
+    $('.refine-mode').hide();
+
+    // show current mode dependent div
+    $('.' + mode + '-mode').show();
+
+    // change tab background 
+    $('.nav-tabs').css('background-image', 'url(images/' + mode + '-bg.png)');
+
+    // specific mode tweaks, TO DO: 
+    if (mode == 'pan') 
+    {
+        $('#completion_title').attr('title', 'PCs').html('PCs');
+        $('#redundancy_title').attr('title', 'Gene Calls').html('Gene Calls');
+        $('#splits_title').hide();
+        $('#len_title').hide();
+    } 
+}
+
+function initProjectBar(project) {
+    $('#multiUser').show();
+    $('#multiUser > span').html('<b>' + document.title + '</b><br /><i>(by <a href="/' + project.username + '" target="_blank">' + project.fullname + '</a>)</i>');
+    $('#multiUser > img').attr('src', project.user_avatar);
+    $('#multiUser > .download-button').attr('href', project.download_zip_url);
+    $('#sidebar').css('margin-top', '81px') 
+}
+
+function initDescription(description) {    
+    if (typeof description !== 'undefined')
+    {
+        $('#title-panel-first-line').append('<button class="btn btn-xs btn-default" onclick="showDescription();" style="margin-left: 15px;"><span class="glyphicon glyphicon-info-sign"></span> Description</button>');
+    }
+    else
+    {
+        description = '';
+    }
+
+    $('#description-editor').val(description);
+
+    descriptionEditor = new SimpleMDE({ 
+        element: document.getElementById("description-editor"),
+        toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|" ,"link", "image", "|" ,"preview"],
+    });
+
+    descriptionEditor.codemirror.on("change", function(){
+        $('#description-editor').val(descriptionEditor.value());
+    });
 }
 
 function onViewChange() {
-    var defer = $.Deferred();
-    console.log('View data ' + $('#views_container').val() + ' requested.');
+    console.log('Loading view data ' + $('#views_container').val());
 
     $('#views_container').prop('disabled', false);
     $('#btn_draw_tree').prop('disabled', true);
 
-    waitingDialog.show('Requesting view data from the server ...', 
-        {
-            dialogSize: 'sm', 
-            onHide: function() {
-                defer.resolve(); 
-            },
-            onShow: function() {
-                $.ajax({
-                    type: 'GET',
-                    cache: false,
-                    url: '/data/view/' + $('#views_container').val() + '?timestamp=' + new Date().getTime(),
-                    success: function(data) {
-                        layerdata = eval(data);
-                        parameter_count = layerdata[0].length;
+    layerdata = views_all[$('#views_container').val()];
+    parameter_count = layerdata[0].length;
 
-                        // since we are painting parent layers odd-even, 
-                        // we should remove single parents (single means no parent)
-                        removeSingleParents(); // in utils.js
+    // since we are painting parent layers odd-even, 
+    // we should remove single parents (single means no parent)
+    removeSingleParents(); // in utils.js
 
-                        layer_order = Array.apply(null, Array(parameter_count-1)).map(function (_, i) {return i+1;}); // range(1, parameter_count)
-                        layer_types = {};
+    layer_order = Array.apply(null, Array(parameter_count-1)).map(function (_, i) {return i+1;}); // range(1, parameter_count)
+    layer_types = {};
 
-                        // add layerdata columns to search window
-                        $('#searchLayerList').empty();
-                        for (var i=0; i < parameter_count; i++)
-                        {
-                            $('#searchLayerList').append(new Option(layerdata[0][i],i));
-                        }
+    // add layerdata columns to search window
+    $('#searchLayerList').empty();
+    for (var i=0; i < parameter_count; i++)
+    {
+        $('#searchLayerList').append(new Option(layerdata[0][i],i));
+    }
 
-                        $('#views_container').attr('disabled', false);
-                        $('#btn_draw_tree').attr('disabled', false);
+    $('#views_container').attr('disabled', false);
+    $('#btn_draw_tree').attr('disabled', false);
 
-                        if (current_view != '') {
-                            // backup current layer order and layers table to global views object
-                            syncViews();
-                        }
-                        current_view = $('#views_container').val();
+    if (current_view != '') {
+        // backup current layer order and layers table to global views object
+        syncViews();
+    }
+    current_view = $('#views_container').val();
 
-                        $("#tbody_layers").empty();
+    $("#tbody_layers").empty();
 
-                        buildLayersTable(layer_order, views[current_view]);
-                        populateColorDicts();
-                        buildLegendTables();
-
-                        waitingDialog.hide();
-                    }
-                });
-            },
-        });
-
-    return defer.promise();
+    buildLayersTable(layer_order, views[current_view]);
+    populateColorDicts();
+    buildLegendTables();
 }
 
 function populateColorDicts() {
@@ -804,33 +811,20 @@ function storeDescription() {
 }
 
 function onTreeClusteringChange() {
-    var defer = $.Deferred();
-    console.log('Tree clustering data ' + $('#trees_container').val() + ' requested.');
+    console.log('Loading clustering data ' + $('#trees_container').val());
     $('#trees_container').prop('disabled', true);
     $('#btn_draw_tree').prop('disabled', true);
 
-    waitingDialog.show('Requesting the tree data ...', 
-        {
-            dialogSize: 'sm', 
-            onHide: function() { 
-                defer.resolve(); 
-            },
-            onShow: function() {    
-                $.ajax({
-                    type: 'GET',
-                    cache: false,
-                    url: '/tree/' + $('#trees_container').val() + '?timestamp=' + new Date().getTime(),
-                    success: function(data) {
-                        clusteringData = data;
-                        $('#trees_container').attr('disabled', false);
-                        $('#btn_draw_tree').attr('disabled', false); 
-                        waitingDialog.hide();
-                    }
-                });
-            },
-        });
+    clusteringData = clusterings_all[$('#trees_container').val()];
 
-    return defer.promise();
+    if (clusteringData.hasOwnProperty('newick')) {
+        clusteringData = clusteringData['newick'];
+    } else {
+        clusteringData = clusteringData['basic'];
+    }
+    
+    $('#trees_container').attr('disabled', false);
+    $('#btn_draw_tree').attr('disabled', false); 
 }
 
 function syncViews() {
@@ -861,7 +855,7 @@ function syncViews() {
 
 
 function getComboBoxContent(default_item, available_items){
-    available_items = Object.keys(available_items).sort()
+    available_items = available_items.sort()
     var combo = '';
     var combo_item = '<option value="{val}"{sel}>{text}</option>';
 
@@ -1682,7 +1676,11 @@ function showCompleteness(bin_id, updateOnly) {
         return;
 
     var msg = '<table class="table table-striped sortable">' +
-        '<thead><tr><th data-sortcolumn="0" data-sortkey="0-0">Source</th><th data-sortcolumn="1" data-sortkey="1-0">SCG domain</th><th data-sortcolumn="2" data-sortkey="2-0">Percent complenetess</th></tr></thead><tbody>';
+              '<thead>' + 
+              '<tr><th data-sortcolumn="0" data-sortkey="0-0">Source</th>' + 
+              '<th data-sortcolumn="1" data-sortkey="1-0">SCG domain</th>' +
+              '<th data-sortcolumn="2" data-sortkey="2-0">Percent complenetess</th>' +
+              '</tr></thead><tbody>';
 
     for (var source in stats){
         if(stats[source]['domain'] != averages['domain'])
@@ -2369,10 +2367,10 @@ function loadState()
                                 $('#tree-radius').val(state['tree-radius']);
                             }
                             if (state.hasOwnProperty('order-by') && $("#trees_container option[value='" + state['order-by'] + "']").length) {
-                                $('#trees_container').val(state['order-by']);
+                                $('#trees_container').val(state['order-by']).trigger('change');
                             }
                             if (state.hasOwnProperty('current-view') && $("#views_container option[value='" + state['current-view'] + "']").length) {
-                                $('#views_container').val(state['current-view']);
+                                $('#views_container').val(state['current-view']).trigger('change');
                             }
                             if (state.hasOwnProperty('max-font-size')) {
                                 $('#max_font_size').val(state['max-font-size']);
@@ -2451,10 +2449,7 @@ function loadState()
                             buildSamplesTable(state['samples-layer-order'], state['samples-layers']);
                             buildLegendTables();
 
-
                             current_state_name = state_name;
-                            $('#current_state').html('[current state: ' + current_state_name + ']');
-
                             toastr.success("State '" + current_state_name + "' successfully loaded.");
                             waitingDialog.hide();
                         }
