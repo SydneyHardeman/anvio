@@ -12,6 +12,7 @@ import re
 import io
 import sys
 import json
+import copy
 import random
 import requests
 import datetime
@@ -29,6 +30,7 @@ import anvio.drivers as drivers
 import anvio.terminal as terminal
 import anvio.summarizer as summarizer
 import anvio.filesnpaths as filesnpaths
+import anvio.interactive as interactive
 
 from anvio.errors import RefineError, ConfigError
 
@@ -108,6 +110,7 @@ class BottleApplication(Bottle):
         self.route('/data/store_refined_bins',                 callback=self.store_refined_bins, method='POST')
         self.route('/data/phylogeny/programs',                 callback=self.get_available_phylogeny_programs)
         self.route('/data/phylogeny/generate_tree',            callback=self.generate_tree, method='POST')
+        self.route('/launch_refine',                           callback=self.launch_refine, method='POST')
 
     def run_application(self, ip, port):
         try:
@@ -652,6 +655,18 @@ class BottleApplication(Bottle):
         data['index'], data['total'], data['previous_pc_name'], data['next_pc_name'] = self.get_index_total_previous_and_next_items(pc_name)
 
         return json.dumps(data)
+
+    def launch_refine(self):
+        bin_name = request.forms.get('bin_name')
+        refine_args = copy.deepcopy(self.args)
+        refine_args.mode = 'refine'
+        refine_args.bin_id = bin_name
+
+        d = interactive.Interactive(refine_args)
+        refine_args.port_number = utils.get_port_num(None, refine_args.ip_address, run=run)
+        
+        app = BottleApplication(d, refine_args)
+        app.run_application(refine_args.ip_address, refine_args.port_number)
 
 
     def store_refined_bins(self):

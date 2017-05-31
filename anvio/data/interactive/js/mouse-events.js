@@ -526,8 +526,19 @@ function menu_callback(action, param) {
         case 'blastx_refseq_protein': fire_up_ncbi_blast(item_name, 'blastx', 'refseq_genomic', 'contig'); break;
 
         // collection mode-specific:
-        case 'refine_bin': toastr.error('Refine function from the interface is not currently implemented :/ ' +
-                                        'Please use `anvi-refine` program for "' + item_name  +'"'); break;
+        case 'refine_bin': 
+            $.ajax({
+                type: 'POST',
+                cache: false,
+                url: '/launch_refine?timestamp=' + new Date().getTime(),
+                data: {'bin_name': id_to_node_map[context_menu_target_id].label },
+                success: function(data) {
+                    //
+                }
+            });   
+        /* toastr.error('Refine function from the interface is not currently implemented :/ ' +
+                                        'Please use `anvi-refine` program for "' + item_name  +'"'); */
+            break;
         case 'get_hmm_sequence':
             $.ajax({
                 type: 'GET',
