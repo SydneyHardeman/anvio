@@ -56,6 +56,7 @@ class BottleApplication(Bottle):
         self.interactive = interactive
         self.args = args
         self.read_only = args.read_only
+        self.child_process = None
 
         self.unique_session_id = random.randint(0,9999999999)
         self.static_dir = os.path.join(os.path.dirname(utils.__file__), 'data/interactive')
@@ -123,7 +124,8 @@ class BottleApplication(Bottle):
             run.info_single('The server is now listening the port number "%d". When you are finished, press CTRL+C to terminate the server.' % port, 'green', nl_before = 1, nl_after=1)
             server_process.join()
         except KeyboardInterrupt:
-            run.warning('The server is being terminated.', header='Please wait...')
+            print(self.child_process)
+            run.warning(self.interactive.mode + ' The server is being terminated.', header='Please wait...')
             server_process.terminate()
             sys.exit(0)
 
@@ -666,8 +668,9 @@ class BottleApplication(Bottle):
         refine_args.port_number = utils.get_port_num(None, refine_args.ip_address, run=run)
         
         app = BottleApplication(d, refine_args)
-        app.run_application(refine_args.ip_address, refine_args.port_number)
-
+        self.child_process = Process(target=app.run_application, args=(refine_args.ip_address, refine_args.port_number))
+        self.child_process.start()
+        #self.child_process.join()
 
     def store_refined_bins(self):
         data = json.loads(request.forms.get('data'))
