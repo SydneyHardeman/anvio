@@ -532,8 +532,17 @@ function menu_callback(action, param) {
                 cache: false,
                 url: '/launch_refine?timestamp=' + new Date().getTime(),
                 data: {'bin_name': id_to_node_map[context_menu_target_id].label },
-                success: function(data) {
-                    //
+                success: function() {
+                    $.ajax({
+                        type: 'GET',
+                        cache: false,
+                        url: '/check_refine_process?timestamp=' + new Date().getTime(),
+                        success: function(data) {
+                            if(data['status']==0) {
+                                location.reload(true);
+                            }
+                        }
+                    });
                 }
             });   
         /* toastr.error('Refine function from the interface is not currently implemented :/ ' +

@@ -12,11 +12,11 @@ import re
 import io
 import sys
 import json
-import copy
 import random
 import requests
 import datetime
 import webbrowser
+import subprocess
 from multiprocessing import Process
 
 from bottle import Bottle
@@ -56,7 +56,7 @@ class BottleApplication(Bottle):
         self.interactive = interactive
         self.args = args
         self.read_only = args.read_only
-        self.child_process = None
+        self.child_refine_process = None
 
         self.unique_session_id = random.randint(0,9999999999)
         self.static_dir = os.path.join(os.path.dirname(utils.__file__), 'data/interactive')
@@ -112,6 +112,7 @@ class BottleApplication(Bottle):
         self.route('/data/phylogeny/programs',                 callback=self.get_available_phylogeny_programs)
         self.route('/data/phylogeny/generate_tree',            callback=self.generate_tree, method='POST')
         self.route('/launch_refine',                           callback=self.launch_refine, method='POST')
+        self.route('/check_refine_process',                    callback=self.check_refine_process)
 
     def run_application(self, ip, port):
         try:
@@ -124,7 +125,6 @@ class BottleApplication(Bottle):
             run.info_single('The server is now listening the port number "%d". When you are finished, press CTRL+C to terminate the server.' % port, 'green', nl_before = 1, nl_after=1)
             server_process.join()
         except KeyboardInterrupt:
-            print(self.child_process)
             run.warning(self.interactive.mode + ' The server is being terminated.', header='Please wait...')
             server_process.terminate()
             sys.exit(0)
@@ -658,19 +658,26 @@ class BottleApplication(Bottle):
 
         return json.dumps(data)
 
+
     def launch_refine(self):
         bin_name = request.forms.get('bin_name')
-        refine_args = copy.deepcopy(self.args)
-        refine_args.mode = 'refine'
-        refine_args.bin_id = bin_name
+        cmdline = sys.argv[:]
+        cmdline[0] = 'anvi-refine'
+        cmdline.append('-b')
+        cmdline.append(bin_name)
+        cmdline.append('--kill-after-store')
 
-        d = interactive.Interactive(refine_args)
-        refine_args.port_number = utils.get_port_num(None, refine_args.ip_address, run=run)
-        
-        app = BottleApplication(d, refine_args)
-        self.child_process = Process(target=app.run_application, args=(refine_args.ip_address, refine_args.port_number))
-        self.child_process.start()
-        #self.child_process.join()
+        progress.new("Refining '%s'" % bin_name)
+        progress.update("Please refine your bin and store selections using bin tab")
+        self.child_refine_process = subprocess.Popen(cmdline, stdout=open(os.devnull, 'w'), stderr=open(os.devnull, 'w'))
+        return json.dumps({'status': 0})
+
+
+    def check_refine_process(self):
+        code = self.child_refine_process.wait()
+        progress.end()
+        return json.dumps({'status': 0})
+
 
     def store_refined_bins(self):
         data = json.loads(request.forms.get('data'))
