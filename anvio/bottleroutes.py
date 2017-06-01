@@ -674,6 +674,7 @@ class BottleApplication(Bottle):
 
     def check_refine_process(self):
         code = self.child_refine_process.wait()
+        self.interactive.__init__(self.args) # reload interactive
         progress.end()
         return json.dumps({'status': 0})
 
