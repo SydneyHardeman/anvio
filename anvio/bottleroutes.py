@@ -30,7 +30,6 @@ import anvio.drivers as drivers
 import anvio.terminal as terminal
 import anvio.summarizer as summarizer
 import anvio.filesnpaths as filesnpaths
-import anvio.interactive as interactive
 
 from anvio.errors import RefineError, ConfigError
 
