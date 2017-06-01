@@ -124,7 +124,7 @@ class BottleApplication(Bottle):
             run.info_single('The server is now listening the port number "%d". When you are finished, press CTRL+C to terminate the server.' % port, 'green', nl_before = 1, nl_after=1)
             server_process.join()
         except KeyboardInterrupt:
-            run.warning(self.interactive.mode + ' The server is being terminated.', header='Please wait...')
+            run.warning('The server is being terminated.', header='Please wait...')
             server_process.terminate()
             sys.exit(0)
 

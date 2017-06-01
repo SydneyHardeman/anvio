@@ -544,9 +544,7 @@ function menu_callback(action, param) {
                         }
                     });
                 }
-            });   
-        /* toastr.error('Refine function from the interface is not currently implemented :/ ' +
-                                        'Please use `anvi-refine` program for "' + item_name  +'"'); */
+            });
             break;
         case 'get_hmm_sequence':
             $.ajax({
