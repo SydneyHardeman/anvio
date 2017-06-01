@@ -1221,6 +1221,13 @@ D = {
              'action': 'store_true',
              'help': "Use the TAB-delimited format for the output file."}
                 ),
+    'kill-after-store': (
+            ['--kill-after-store'],
+            {'default': False,
+             'required': False,
+             'action': 'store_true',
+             'help': "Kill process after refined bin is stored."}
+                ),
 }
 
 # two functions that works with the dictionary above.

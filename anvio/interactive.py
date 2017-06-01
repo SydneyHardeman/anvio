@@ -82,6 +82,7 @@ class Interactive(ProfileSuperclass, PanSuperclass, ContigsSuperclass):
         self.bin_ids_file_path = A('bin_ids_file')
         self.bin_id = A('bin_id')
         self.collection_name = A('collection_name')
+        self.kill_after_store = A('kill_after_store')
 
         if self.pan_db_path and self.profile_db_path:
             raise ConfigError("You can't set both a profile database and a pan database in arguments\

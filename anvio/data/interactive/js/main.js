@@ -1930,6 +1930,9 @@ function storeRefinedBins() {
             } else {
                 toastr.info(data.message, "The server is on board");
             }
+        },
+        error: function () {
+            window.close();
         }
     });
 }

@@ -68,6 +68,8 @@ groupF.add_argument(*anvio.A('ip-address'), **anvio.K('ip-address'))
 groupF.add_argument(*anvio.A('port-number'), **anvio.K('port-number'))
 groupF.add_argument(*anvio.A('read-only'), **anvio.K('read-only'))
 groupF.add_argument(*anvio.A('server-only'), **anvio.K('server-only'))
+groupF.add_argument(*anvio.A('kill-after-store'), **anvio.K('kill-after-store'))
+
 
 args = parser.parse_args()
 

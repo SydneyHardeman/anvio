@@ -685,6 +685,9 @@ class BottleApplication(Bottle):
         except RefineError as e:
             return json.dumps({'status': -1, 'message': e.clear_text()})
 
+        if self.interactive.kill_after_store:
+            sys.exit(0)
+
         message = 'Done! Collection %s is updated in the database. You can close your browser window (or continue updating).' % (self.interactive.collection_name)
         return json.dumps({'status': 0, 'message': message})
 
