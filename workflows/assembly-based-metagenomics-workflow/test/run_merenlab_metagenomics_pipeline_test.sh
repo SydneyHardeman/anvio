@@ -6,8 +6,8 @@ SETUP_WITH_OUTPUT_DIR $1
 #####################################
 
 # copy latest script here
-cp ../sandbox/merenlab-metagenomics-pipeline.snakefile $output_dir
-cp $files/mock_files_for_merenlab_metagenomics_pipeline/*json $output_dir
+cp ../merenlab-metagenomics-pipeline.snakefile $output_dir
+cp ../mock_files_for_merenlab_metagenomics_pipeline/*json $output_dir
 
 # we have to go into the test directory because snakemake requires you run the command from the directory where the snakemake is
 cd $output_dir
